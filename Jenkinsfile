@@ -1,10 +1,14 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'maven:3.8.6-openjdk-17'
+            args '-v /root/.m2:/root/.m2'
+        }
+    }
     
     environment {
         PROJECT_NAME = 'projet-devops'
         SLACK_CHANNEL = '#devops-notifications'
-        SLACK_CREDENTIALS_ID = 'slack-webhook-url'
     }
     
     stages {
@@ -19,7 +23,7 @@ pipeline {
         
         stage('Build') {
             steps {
-                echo 'Compilation et tests de l\'application...'
+                echo 'Compilation de l\'application...'
                 sh 'mvn clean compile'
             }
         }
@@ -32,7 +36,6 @@ pipeline {
             post {
                 always {
                     junit 'target/surefire-reports/*.xml'
-                    publishTestResults testResultsPattern: 'target/surefire-reports/*.xml'
                 }
             }
         }
@@ -61,7 +64,6 @@ pipeline {
             steps {
                 echo 'Déploiement de l\'application...'
                 script {
-                    // Optionnel : déploiement sur serveur local ou cloud
                     sh 'echo "Application déployée avec succès"'
                     sh 'java -jar target/projet-devops-1.0.0.jar || true'
                 }
@@ -73,34 +75,42 @@ pipeline {
         success {
             echo 'Pipeline exécuté avec succès !'
             script {
-                // Notification Slack en cas de succès
-                slackSend(
-                    channel: env.SLACK_CHANNEL,
-                    color: 'good',
-                    message: """
-                        ✅ Pipeline réussi pour ${env.PROJECT_NAME}
-                        Build: ${env.BUILD_NUMBER}
-                        Auteur: ${env.CHANGE_AUTHOR ?: 'N/A'}
-                        Branche: ${env.BRANCH_NAME}
-                        Durée: ${currentBuild.durationString}
-                    """
-                )
+                // Notification Slack optionnelle (si le plugin est installé)
+                try {
+                    slackSend(
+                        channel: env.SLACK_CHANNEL,
+                        color: 'good',
+                        message: """
+                            ✅ Pipeline réussi pour ${env.PROJECT_NAME}
+                            Build: ${env.BUILD_NUMBER}
+                            Auteur: ${env.CHANGE_AUTHOR ?: 'N/A'}
+                            Branche: ${env.BRANCH_NAME}
+                            Durée: ${currentBuild.durationString}
+                        """
+                    )
+                } catch (Exception e) {
+                    echo "Plugin Slack non disponible: ${e.getMessage()}"
+                }
             }
         }
         failure {
             echo 'Pipeline échoué !'
             script {
-                // Notification Slack en cas d'échec
-                slackSend(
-                    channel: env.SLACK_CHANNEL,
-                    color: 'danger',
-                    message: """
-                        ❌ Pipeline échoué pour ${env.PROJECT_NAME}
-                        Build: ${env.BUILD_NUMBER}
-                        Branche: ${env.BRANCH_NAME}
-                        Consulter les logs pour plus de détails.
-                    """
-                )
+                // Notification Slack optionnelle (si le plugin est installé)
+                try {
+                    slackSend(
+                        channel: env.SLACK_CHANNEL,
+                        color: 'danger',
+                        message: """
+                            ❌ Pipeline échoué pour ${env.PROJECT_NAME}
+                            Build: ${env.BUILD_NUMBER}
+                            Branche: ${env.BRANCH_NAME}
+                            Consulter les logs pour plus de détails.
+                        """
+                    )
+                } catch (Exception e) {
+                    echo "Plugin Slack non disponible: ${e.getMessage()}"
+                }
             }
         }
         always {
