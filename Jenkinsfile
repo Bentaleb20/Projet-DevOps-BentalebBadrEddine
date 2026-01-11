@@ -4,8 +4,6 @@ pipeline {
     environment {
         PROJECT_NAME = 'projet-devops'
         SLACK_CHANNEL = '#jenkins'
-        // L'URL du webhook doit être configurée comme credential dans Jenkins
-        // ID du credential: url-slack-webhook
     }
     
     stages {
@@ -120,28 +118,18 @@ pipeline {
             echo "Branche: ${env.BRANCH_NAME}"
             echo "Durée: ${currentBuild.durationString}"
             script {
-                // Notification Slack en cas de succès
-                try {
-                    slackSend(
-                        channel: env.SLACK_CHANNEL,
-                        color: 'good',
-                        message: """
-                            ✅ *Pipeline réussi pour ${env.PROJECT_NAME}*
-                            
-                            *Build:* ${env.BUILD_NUMBER}
-                            *Branche:* ${env.BRANCH_NAME}
-                            *Auteur:* ${env.CHANGE_AUTHOR ?: 'N/A'}
-                            *Durée:* ${currentBuild.durationString}
-                            
-                            Consulter le build: ${env.BUILD_URL}
-                        """
-                    )
-                } catch (Exception e) {
-                    echo "⚠️ Plugin Slack non disponible ou non configuré: ${e.getMessage()}"
-                    echo "Pour activer les notifications Slack:"
-                    echo "1. Installer le plugin 'Slack Notification' dans Jenkins"
-                    echo "2. Configurer le credential avec l'URL du webhook (ID: url-slack-webhook)"
-                    echo "3. Configurer Slack dans Gérer Jenkins → Configuration du système"
+                // Notification Slack via webhook direct
+                withCredentials([string(credentialsId: 'url-slack-webhook', variable: 'SLACK_WEBHOOK_URL')]) {
+                    sh """
+                        curl -X POST -H 'Content-type: application/json' \
+                        --data '{
+                            \"channel\": \"${env.SLACK_CHANNEL}\",
+                            \"username\": \"Jenkins\",
+                            \"text\": \"✅ *Pipeline réussi pour ${env.PROJECT_NAME}*\\n\\n*Build:* ${env.BUILD_NUMBER}\\n*Branche:* ${env.BRANCH_NAME}\\n*Auteur:* ${env.CHANGE_AUTHOR ?: 'N/A'}\\n*Durée:* ${currentBuild.durationString}\\n\\nConsulter le build: ${env.BUILD_URL}\",
+                            \"icon_emoji\": \":white_check_mark:\"
+                        }' \
+                        ${SLACK_WEBHOOK_URL} || echo "⚠️ Erreur lors de l'envoi de la notification Slack"
+                    """
                 }
             }
         }
@@ -150,26 +138,18 @@ pipeline {
             echo "Build: ${env.BUILD_NUMBER}"
             echo "Branche: ${env.BRANCH_NAME}"
             script {
-                // Notification Slack en cas d'échec
-                try {
-                    slackSend(
-                        channel: env.SLACK_CHANNEL,
-                        color: 'danger',
-                        message: """
-                            ❌ *Pipeline échoué pour ${env.PROJECT_NAME}*
-                            
-                            *Build:* ${env.BUILD_NUMBER}
-                            *Branche:* ${env.BRANCH_NAME}
-                            
-                            Consulter les logs: ${env.BUILD_URL}
-                        """
-                    )
-                } catch (Exception e) {
-                    echo "⚠️ Plugin Slack non disponible ou non configuré: ${e.getMessage()}"
-                    echo "Pour activer les notifications Slack:"
-                    echo "1. Installer le plugin 'Slack Notification' dans Jenkins"
-                    echo "2. Configurer le credential avec l'URL du webhook (ID: url-slack-webhook)"
-                    echo "3. Configurer Slack dans Gérer Jenkins → Configuration du système"
+                // Notification Slack via webhook direct
+                withCredentials([string(credentialsId: 'url-slack-webhook', variable: 'SLACK_WEBHOOK_URL')]) {
+                    sh """
+                        curl -X POST -H 'Content-type: application/json' \
+                        --data '{
+                            \"channel\": \"${env.SLACK_CHANNEL}\",
+                            \"username\": \"Jenkins\",
+                            \"text\": \"❌ *Pipeline échoué pour ${env.PROJECT_NAME}*\\n\\n*Build:* ${env.BUILD_NUMBER}\\n*Branche:* ${env.BRANCH_NAME}\\n\\nConsulter les logs: ${env.BUILD_URL}\",
+                            \"icon_emoji\": \":x:\"
+                        }' \
+                        ${SLACK_WEBHOOK_URL} || echo "⚠️ Erreur lors de l'envoi de la notification Slack"
+                    """
                 }
             }
         }
