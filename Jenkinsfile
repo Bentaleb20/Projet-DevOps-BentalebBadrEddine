@@ -3,7 +3,9 @@ pipeline {
     
     environment {
         PROJECT_NAME = 'projet-devops'
-        SLACK_CHANNEL = '#devops-notifications'
+        SLACK_CHANNEL = '#jenkins'
+        // L'URL du webhook doit être configurée comme credential dans Jenkins
+        // ID du credential: url-slack-webhook
     }
     
     stages {
@@ -113,43 +115,61 @@ pipeline {
     
     post {
         success {
-            echo 'Pipeline exécuté avec succès !'
+            echo '✅ Pipeline exécuté avec succès !'
+            echo "Build: ${env.BUILD_NUMBER}"
+            echo "Branche: ${env.BRANCH_NAME}"
+            echo "Durée: ${currentBuild.durationString}"
             script {
-                // Notification Slack optionnelle (si le plugin est installé)
+                // Notification Slack en cas de succès
                 try {
                     slackSend(
                         channel: env.SLACK_CHANNEL,
                         color: 'good',
                         message: """
-                            ✅ Pipeline réussi pour ${env.PROJECT_NAME}
-                            Build: ${env.BUILD_NUMBER}
-                            Auteur: ${env.CHANGE_AUTHOR ?: 'N/A'}
-                            Branche: ${env.BRANCH_NAME}
-                            Durée: ${currentBuild.durationString}
+                            ✅ *Pipeline réussi pour ${env.PROJECT_NAME}*
+                            
+                            *Build:* ${env.BUILD_NUMBER}
+                            *Branche:* ${env.BRANCH_NAME}
+                            *Auteur:* ${env.CHANGE_AUTHOR ?: 'N/A'}
+                            *Durée:* ${currentBuild.durationString}
+                            
+                            Consulter le build: ${env.BUILD_URL}
                         """
                     )
                 } catch (Exception e) {
-                    echo "Plugin Slack non disponible: ${e.getMessage()}"
+                    echo "⚠️ Plugin Slack non disponible ou non configuré: ${e.getMessage()}"
+                    echo "Pour activer les notifications Slack:"
+                    echo "1. Installer le plugin 'Slack Notification' dans Jenkins"
+                    echo "2. Configurer le credential avec l'URL du webhook (ID: url-slack-webhook)"
+                    echo "3. Configurer Slack dans Gérer Jenkins → Configuration du système"
                 }
             }
         }
         failure {
-            echo 'Pipeline échoué !'
+            echo '❌ Pipeline échoué !'
+            echo "Build: ${env.BUILD_NUMBER}"
+            echo "Branche: ${env.BRANCH_NAME}"
             script {
-                // Notification Slack optionnelle (si le plugin est installé)
+                // Notification Slack en cas d'échec
                 try {
                     slackSend(
                         channel: env.SLACK_CHANNEL,
                         color: 'danger',
                         message: """
-                            ❌ Pipeline échoué pour ${env.PROJECT_NAME}
-                            Build: ${env.BUILD_NUMBER}
-                            Branche: ${env.BRANCH_NAME}
-                            Consulter les logs pour plus de détails.
+                            ❌ *Pipeline échoué pour ${env.PROJECT_NAME}*
+                            
+                            *Build:* ${env.BUILD_NUMBER}
+                            *Branche:* ${env.BRANCH_NAME}
+                            
+                            Consulter les logs: ${env.BUILD_URL}
                         """
                     )
                 } catch (Exception e) {
-                    echo "Plugin Slack non disponible: ${e.getMessage()}"
+                    echo "⚠️ Plugin Slack non disponible ou non configuré: ${e.getMessage()}"
+                    echo "Pour activer les notifications Slack:"
+                    echo "1. Installer le plugin 'Slack Notification' dans Jenkins"
+                    echo "2. Configurer le credential avec l'URL du webhook (ID: url-slack-webhook)"
+                    echo "3. Configurer Slack dans Gérer Jenkins → Configuration du système"
                 }
             }
         }
