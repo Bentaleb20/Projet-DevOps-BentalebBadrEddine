@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'maven:3.8.6-openjdk-17'
-            args '-v /root/.m2:/root/.m2'
-        }
-    }
+    agent any
     
     environment {
         PROJECT_NAME = 'projet-devops'
@@ -21,17 +16,57 @@ pipeline {
             }
         }
         
+        stage('Setup Maven') {
+            steps {
+                script {
+                    // Vérifier si Maven est disponible
+                    def mvnCheck = sh(script: 'command -v mvn 2>/dev/null || echo "NOT_FOUND"', returnStdout: true).trim()
+                    if (mvnCheck == 'NOT_FOUND') {
+                        echo 'Installation de Maven dans le workspace...'
+                        sh '''
+                            # Installation de Maven dans le workspace (sans sudo)
+                            cd ${WORKSPACE}
+                            if [ ! -d "apache-maven-3.8.6" ]; then
+                                echo "Téléchargement de Maven 3.8.6..."
+                                wget -q https://archive.apache.org/dist/maven/maven-3/3.8.6/binaries/apache-maven-3.8.6-bin.tar.gz || \
+                                curl -L -o apache-maven-3.8.6-bin.tar.gz https://archive.apache.org/dist/maven/maven-3/3.8.6/binaries/apache-maven-3.8.6-bin.tar.gz
+                                tar -xzf apache-maven-3.8.6-bin.tar.gz
+                                rm -f apache-maven-3.8.6-bin.tar.gz
+                            fi
+                            export PATH=${WORKSPACE}/apache-maven-3.8.6/bin:$PATH
+                            export MAVEN_HOME=${WORKSPACE}/apache-maven-3.8.6
+                            mvn -version
+                        '''
+                    } else {
+                        echo "Maven trouvé: ${mvnCheck}"
+                        sh 'mvn -version'
+                    }
+                }
+            }
+        }
+        
         stage('Build') {
             steps {
                 echo 'Compilation de l\'application...'
-                sh 'mvn clean compile'
+                sh '''
+                    # Utiliser Maven du workspace ou du système
+                    if [ -d "${WORKSPACE}/apache-maven-3.8.6" ]; then
+                        export PATH=${WORKSPACE}/apache-maven-3.8.6/bin:$PATH
+                    fi
+                    mvn clean compile
+                '''
             }
         }
         
         stage('Test') {
             steps {
                 echo 'Exécution des tests...'
-                sh 'mvn test'
+                sh '''
+                    if [ -d "${WORKSPACE}/apache-maven-3.8.6" ]; then
+                        export PATH=${WORKSPACE}/apache-maven-3.8.6/bin:$PATH
+                    fi
+                    mvn test
+                '''
             }
             post {
                 always {
@@ -43,7 +78,12 @@ pipeline {
         stage('Package') {
             steps {
                 echo 'Création du package JAR...'
-                sh 'mvn package -DskipTests'
+                sh '''
+                    if [ -d "${WORKSPACE}/apache-maven-3.8.6" ]; then
+                        export PATH=${WORKSPACE}/apache-maven-3.8.6/bin:$PATH
+                    fi
+                    mvn package -DskipTests
+                '''
             }
         }
         
