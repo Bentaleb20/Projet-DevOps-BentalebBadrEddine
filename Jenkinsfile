@@ -3,7 +3,6 @@ pipeline {
     
     environment {
         PROJECT_NAME = 'projet-devops'
-        SLACK_CHANNEL = '#devops-notifications'
     }
     
     stages {
@@ -113,45 +112,15 @@ pipeline {
     
     post {
         success {
-            echo 'Pipeline exécuté avec succès !'
-            script {
-                // Notification Slack optionnelle (si le plugin est installé)
-                try {
-                    slackSend(
-                        channel: env.SLACK_CHANNEL,
-                        color: 'good',
-                        message: """
-                            ✅ Pipeline réussi pour ${env.PROJECT_NAME}
-                            Build: ${env.BUILD_NUMBER}
-                            Auteur: ${env.CHANGE_AUTHOR ?: 'N/A'}
-                            Branche: ${env.BRANCH_NAME}
-                            Durée: ${currentBuild.durationString}
-                        """
-                    )
-                } catch (Exception e) {
-                    echo "Plugin Slack non disponible: ${e.getMessage()}"
-                }
-            }
+            echo '✅ Pipeline exécuté avec succès !'
+            echo "Build: ${env.BUILD_NUMBER}"
+            echo "Branche: ${env.BRANCH_NAME}"
+            echo "Durée: ${currentBuild.durationString}"
         }
         failure {
-            echo 'Pipeline échoué !'
-            script {
-                // Notification Slack optionnelle (si le plugin est installé)
-                try {
-                    slackSend(
-                        channel: env.SLACK_CHANNEL,
-                        color: 'danger',
-                        message: """
-                            ❌ Pipeline échoué pour ${env.PROJECT_NAME}
-                            Build: ${env.BUILD_NUMBER}
-                            Branche: ${env.BRANCH_NAME}
-                            Consulter les logs pour plus de détails.
-                        """
-                    )
-                } catch (Exception e) {
-                    echo "Plugin Slack non disponible: ${e.getMessage()}"
-                }
-            }
+            echo '❌ Pipeline échoué !'
+            echo "Build: ${env.BUILD_NUMBER}"
+            echo "Branche: ${env.BRANCH_NAME}"
         }
         always {
             echo 'Nettoyage...'
